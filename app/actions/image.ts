@@ -63,9 +63,19 @@ export const generateImage = async (videoId: string) => {
     if (!video) return null;
 
     console.log("Generating image...");
-    const imageUrl = await processImage("Lionel Messi celebrating birthday");
-    console.log("Image URL:", imageUrl);
-    return imageUrl;
+    const images = video.imagePrompts.map(img=> processImage(img))
+    const imageLinks= await Promise.all(images)
+    console.log(imageLinks)
+
+    await prisma.video.update({
+        where:{
+            videoId:videoId
+        },
+        data:{
+            imageLinks:imageLinks,
+            thumbnail:imageLinks[0]
+        }
+    })
   } catch (err) {
     console.error("Error generating image", err);
     throw err;
