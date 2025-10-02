@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Frame</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 1280px;
+      height: 720px;
+      overflow: hidden;
+      background: #000;
+      font-family: Arial, sans-serif;
+    }
+    
+    #container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    #background-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    #frame-info {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-size: 14px;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-family: monospace;
+      display: none; /* Hidden by default */
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <img id="background-image" alt="Background" crossorigin="anonymous">
+    <div id="frame-info"></div>
+  </div>
+
+  <script>
+    // Get URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const frame = parseInt(urlParams.get('frame') || '0');
+    const imageIndex = parseInt(urlParams.get('imageIndex') || '0');
+    const dataStr = urlParams.get('data');
+    
+    console.log('Frame:', frame, 'Image Index:', imageIndex);
+    
+    if (dataStr) {
+      try {
+        const data = JSON.parse(decodeURIComponent(dataStr));
+        const { imageLinks, width, height } = data;
+        
+        // Set dimensions
+        document.body.style.width = `${width}px`;
+        document.body.style.height = `${height}px`;
+        
+        // Display frame info (for debugging, can be removed)
+        const frameInfo = document.getElementById('frame-info');
+        frameInfo.textContent = `Frame: ${frame} | Image: ${imageIndex + 1}/${imageLinks.length}`;
+        
+        // Load the image for this frame
+        const backgroundImg = document.getElementById('background-image');
+        
+        if (imageLinks[imageIndex]) {
+          const imageUrl = imageLinks[imageIndex];
+          console.log(`Loading image ${imageIndex + 1}/${imageLinks.length}:`, imageUrl);
+          
+          backgroundImg.src = imageUrl;
+          backgroundImg.crossOrigin = "anonymous";
+          
+          backgroundImg.onload = () => {
+            console.log('✅ Image loaded:', imageUrl);
+          };
+          
+          backgroundImg.onerror = (e) => {
+            console.error('❌ Image failed to load:', imageUrl, e);
+          };
+        } else {
+          console.error('No image found for index:', imageIndex);
+        }
+        
+      } catch (error) {
+        console.error('Error parsing data:', error);
+      }
+    } else {
+      console.error('No data parameter found');
+    }
+  </script>
+</body>
+</html>

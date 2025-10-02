@@ -6,6 +6,7 @@ import { generateImage } from "./image";
 import { generateAudio } from "./audio";
 import { generateCaptions } from "./captions"; // Import this
 import { videoDuration } from "../lib/duration";
+import { renderVideo } from "./render";
 
 export const processes = async (videoId: string) => {
     try {
@@ -42,34 +43,13 @@ export const processes = async (videoId: string) => {
             }
         });
 
-        // Step 2: Generate audio (needs content)
-        console.log("Step 2: Generating audio...");
-        const audioUrl = await generateAudio(videoId);
-        if (!audioUrl) {
-            throw new Error("Failed to generate audio");
-        }
-        console.log("Audio generated:", audioUrl);
+        const imagesPromise = generateImage(videoId)
+        await generateAudio(videoId)
+        await generateCaptions(videoId)
+        await imagesPromise;
+        await videoDuration(videoId)
 
-        // Step 3: Generate captions (needs audio URL)
-        console.log("Step 3: Generating captions...");
-        const captions = await generateCaptions(videoId);
-        if (!captions || captions.length === 0) {
-            throw new Error("Failed to generate captions");
-        }
-        console.log(`Captions generated: ${captions.length} captions`);
-
-        // Step 4: Calculate duration (needs captions)
-        console.log("Step 4: Calculating duration...");
-        const duration = await videoDuration(videoId);
-        console.log("Duration calculated:", duration);
-
-        // Step 5: Generate image (can run independently)
-        console.log("Step 5: Generating image...");
-        const imageUrl = await generateImage(videoId);
-        console.log("Image generated:", imageUrl);
-
-        console.log("Video processing completed successfully!");
-        return { audioUrl, captions, duration, imageUrl };
+        await renderVideo(videoId)
 
     } catch (err) {
         console.error("Error in making video:", err);

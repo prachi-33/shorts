@@ -59,15 +59,24 @@ const processImage = async (prompt: string) => {
 // Generate image for a video
 export const generateImage = async (videoId: string) => {
   try {
-    const video = await prisma.video.findUnique({ where: { videoId } });
+    /* const video = await prisma.video.findUnique({ where: { videoId } });
     if (!video) return null;
 
     console.log("Generating image...");
     const images = video.imagePrompts.map(img=> processImage(img))
-    const imageLinks= await Promise.all(images)
+    const imageLinks= await Promise.all(images) */
+    const imageLinks=[
+      'https://isevxkayrpawlqqdumjg.supabase.co/storage/v1/object/public/shorts/d788508b-e378-4009-a21f-b578918c4285.png',
+      'https://isevxkayrpawlqqdumjg.supabase.co/storage/v1/object/public/shorts/110d29b7-1e89-4772-b676-2ebf0935895f.png',
+      'https://isevxkayrpawlqqdumjg.supabase.co/storage/v1/object/public/shorts/dddc55b1-2530-4392-9fcb-b4e410d546c0.png',
+      'https://isevxkayrpawlqqdumjg.supabase.co/storage/v1/object/public/shorts/adc768ca-f770-40b0-b10f-50e845e92a68.png',
+      'https://isevxkayrpawlqqdumjg.supabase.co/storage/v1/object/public/shorts/e05cdb3a-7b57-4c6f-b620-32268ff65a43.png'
+    ]
     console.log(imageLinks)
+    
 
-    await prisma.video.update({
+
+     await prisma.video.update({
         where:{
             videoId:videoId
         },
@@ -75,7 +84,8 @@ export const generateImage = async (videoId: string) => {
             imageLinks:imageLinks,
             thumbnail:imageLinks[0]
         }
-    })
+    }) 
+    return imageLinks;
   } catch (err) {
     console.error("Error generating image", err);
     throw err;

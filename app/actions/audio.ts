@@ -24,7 +24,7 @@ const bucketName = process.env.BUCKET_NAME || "images";
 
 export const generateAudio = async (videoId: string) => {
   try {
-    const video = await prisma.video.findUnique({
+    /* const video = await prisma.video.findUnique({
       where: {
         videoId: videoId
       }
@@ -76,7 +76,8 @@ export const generateAudio = async (videoId: string) => {
       .from(bucketName)
       .getPublicUrl(fileName);
 
-    console.log("Audio URL:", publicUrl);
+    console.log("Audio URL:", publicUrl); */
+    const publicUrl="https://isevxkayrpawlqqdumjg.supabase.co/storage/v1/object/public/shorts/6a9f08d5-0122-4931-83e4-749298b016e9.mp3 "
 
     // Update video with audio URL
     await prisma.video.update({
