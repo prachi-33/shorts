@@ -1,3 +1,4 @@
+"use server"
 import React from 'react'
 import checkUser from "../lib/checkUser"
 import CreateProject from './CreateProject';

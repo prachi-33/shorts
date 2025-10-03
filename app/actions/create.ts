@@ -4,6 +4,8 @@ import { randomUUID } from "crypto"
 import {prisma} from "../lib/db";
 import { decreaseCredits } from "../lib/decreaseCredits";
 import { processes } from "./process";
+import { videoQueue } from "../lib/queue";
+import { redirect } from "next/navigation";
 
 export const createVideo=async(prompt:string)=>{
     const videoId=randomUUID()
@@ -21,5 +23,7 @@ export const createVideo=async(prompt:string)=>{
         }
     })
     await decreaseCredits(userId)
-    await processes(videoId)
+    await videoQueue.add('generate-video',{videoId})
+    console.log("job added to queue")
+    redirect(`/video/${videoId}`)
 }
