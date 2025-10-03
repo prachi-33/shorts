@@ -73,7 +73,7 @@ function CreateProject({user,credits}:{user: string | null,credits:number}) {
         {/* Loader Overlay */}
         {loading && (
           <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-[100]">
-            <Loader loadingStates={loadingStates} loading={loading} duration={300000} />
+            <Loader loadingStates={loadingStates} loading={loading} duration={60000} />
             <button
               className="fixed top-4 right-4 text-white z-[120]"
               onClick={() => setLoading(false)}
