@@ -25,5 +25,4 @@ export const createVideo=async(prompt:string)=>{
     await decreaseCredits(userId)
     await videoQueue.add('generate-video',{videoId})
     console.log("job added to queue")
-    redirect(`/video/${videoId}`)
 }

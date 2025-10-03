@@ -53,7 +53,7 @@ function CreateProject({user,credits}:{user: string | null,credits:number}) {
             <SignUpButton>
               <Button className="bg-gradient-to-br hover:opacity-80 text-white  rounded-full mx-2  from-[#3352CC] to-[#1C2D70] font-medium cursor-pointer">
                 Sign-Up
-            </Button>
+              </Button>
             </SignUpButton>
             </div>
         }
@@ -96,7 +96,7 @@ function CreateProject({user,credits}:{user: string | null,credits:number}) {
           <PlaceholdersAndVanishInput
               placeholders={placeholders}
               onChange={(e)=>{setPrompt(e.target.value)}}
-              onSubmit={(e)=>{
+              onSubmit={async (e)=>{   // <-- async here
                 e.preventDefault();
                 if(!user){
                   return (setTimeout(()=>setShowLoginDialog(true),1000));
@@ -107,13 +107,17 @@ function CreateProject({user,credits}:{user: string | null,credits:number}) {
                 
                 // Trigger loader
                 setLoading(true);
-                createVideo(prompt);
 
-                // Simulate 5 min wait before redirect
-                setTimeout(()=>{
-                  setLoading(false);
-                  router.push("/video/id");
-                },300000);
+                try{
+                  await createVideo(prompt);  
+                  router.push("/dashboard");  
+                }catch(err){
+                  console.error("Video creation failed:", err);
+                  setLoading(false); // stop loader on error
+                  alert("Something went wrong. Please try again.");
+                }finally{
+                  setLoading(false)
+                }
               }}
             />
           </NeonGradientCard>
@@ -154,10 +158,7 @@ function CreateProject({user,credits}:{user: string | null,credits:number}) {
               </DialogHeader>
               <DialogFooter>
                   <Button className="bg-gradient-to-br hover:opacity-80 text-white  rounded-full mx-2  from-[#3352CC] to-[#1C2D70] font-medium cursor-pointer"
-                  onClick={()=>{
-                    router.push("/pricing")
-                    setShowCreditsDialog(false)
-                  }}
+                  onClick={()=>{router.push("/pricing"); setShowCreditsDialog(false)}}
                   >
                     Go To Pricing
                   </Button>
