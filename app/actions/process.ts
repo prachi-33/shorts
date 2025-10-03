@@ -4,7 +4,7 @@ import { generateScript } from "./script"
 import { prisma } from "../lib/db";
 import { generateImage } from "./image";
 import { generateAudio } from "./audio";
-import { generateCaptions } from "./captions"; // Import this
+import { generateCaptions } from "./captions"; 
 import { videoDuration } from "../lib/duration";
 import { renderVideo } from "./render";
 

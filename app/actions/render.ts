@@ -252,6 +252,15 @@ export const renderVideo = async (videoId: string) => {
 
   console.log("✅ Uploaded to Supabase:", publicUrl);
 
+  await prisma.video.update({
+    where:{
+      videoId:videoId
+    },
+    data:{
+      videoUrl:publicUrl
+    }
+  })
+
   // Cleanup
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.rmSync(tempDir, { recursive: true, force: true });

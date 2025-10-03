@@ -44,8 +44,8 @@ const page = async ({ params }: {
     return (
         <div className="w-screen h-screen relative">
             <div className="flex flex-row gap-7">
-                <div className="w-[420px] mt-6 ml-9">
-                    <div className="aspect-[9/16] bg-gray-800 rounded-2xl overflow-hidden">
+                <div className="w-[800px] h-[500px]  mt-6 ml-9">
+                    <div className=" bg-gray-800 rounded-2xl overflow-hidden">
                         <video
                             key={videoId}
                             className="w-full h-full object-cover rounded-2xl"
