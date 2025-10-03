@@ -109,14 +109,15 @@ function CreateProject({user,credits}:{user: string | null,credits:number}) {
                 setLoading(true);
 
                 try{
-                  await createVideo(prompt);  
-                  router.push("/dashboard");  
+                  await createVideo(prompt); 
+                   setTimeout(() => {
+                    setLoading(false);
+                    router.push("/dashboard");
+                  }, 60000);   
                 }catch(err){
                   console.error("Video creation failed:", err);
                   setLoading(false); // stop loader on error
                   alert("Something went wrong. Please try again.");
-                }finally{
-                  setLoading(false)
                 }
               }}
             />
