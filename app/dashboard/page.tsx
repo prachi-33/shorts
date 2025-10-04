@@ -36,7 +36,7 @@ const Dashboard = async () => {
                         </Button>
                     </Link>
 
-                    <SignOutButton>
+                    <SignOutButton >
                         <Button className='bg-black border border-gray-400 text-white  rounded-full mx-2 hover:bg-gray-900 transitioncolors duration-150  cursor-pointer'>
                             Sign Out
                         </Button>

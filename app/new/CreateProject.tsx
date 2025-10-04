@@ -66,7 +66,7 @@ function CreateProject({user,credits}:{user: string | null,credits:number}) {
                   Dashhboard
                 </Button>
             </Link>
-            <UserButton/>
+            <UserButton />
           </div>
         }
 
@@ -113,7 +113,7 @@ function CreateProject({user,credits}:{user: string | null,credits:number}) {
                    setTimeout(() => {
                     setLoading(false);
                     router.push("/dashboard");
-                  }, 300000);   
+                  }, 360000);   
                 }catch(err){
                   console.error("Video creation failed:", err);
                   setLoading(false); // stop loader on error
