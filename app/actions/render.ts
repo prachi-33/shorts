@@ -1,5 +1,3 @@
-import puppeteer from "puppeteer";
-import chromium from "@sparticuz/chromium";
 import path from "path";
 import { prisma } from "../lib/db";
 import fs from "fs";
@@ -10,7 +8,7 @@ import http from "http";
 
 const frameRate = 30;
 const durationInSeconds = 30;
-const totalFrames = frameRate * durationInSeconds; // 900 frames
+const totalFrames = frameRate * durationInSeconds;
 const width = 1280;
 const height = 720;
 
@@ -42,9 +40,7 @@ const downloadFile = (url: string, outputPath: string): Promise<void> => {
             resolve();
           });
         } else {
-          reject(
-            new Error(`Failed to download: ${response.statusCode}`)
-          );
+          reject(new Error(`Failed to download: ${response.statusCode}`));
         }
       })
       .on("error", (err) => {
@@ -53,6 +49,23 @@ const downloadFile = (url: string, outputPath: string): Promise<void> => {
       });
   });
 };
+
+async function takeScreenshotWithRetry(page: any, framePath: string, maxRetries = 3) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await page.screenshot({ 
+        path: framePath, 
+        type: "png",
+        omitBackground: false
+      });
+      return;
+    } catch (error) {
+      if (attempt === maxRetries - 1) throw error;
+      console.log(`Screenshot retry ${attempt + 1}/${maxRetries}`);
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+}
 
 export const renderVideo = async (videoId: string) => {
   const startTime = Date.now();
@@ -77,7 +90,6 @@ export const renderVideo = async (videoId: string) => {
     throw new Error("No image links found in video data");
   }
 
-  // Download audio file
   console.log("Downloading audio...");
   const audioPath = path.join(tempDir, `audio_${videoId}.mp3`);
   await downloadFile(video.audio, audioPath);
@@ -85,25 +97,22 @@ export const renderVideo = async (videoId: string) => {
 
   const videoData: VideoData = {
     imageLinks: video.imageLinks,
-    captions: [], // No captions
+    captions: [],
     audio: audioPath,
     width,
     height,
   };
 
-  // Calculate frames per image to distribute evenly
   const framesPerImage = Math.floor(totalFrames / videoData.imageLinks.length);
   
   console.log(`Total frames: ${totalFrames}`);
   console.log(`Total images: ${videoData.imageLinks.length}`);
   console.log(`Frames per image: ${framesPerImage}`);
 
-  // Launch browser
   let browser;
   const isProduction = process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
 
   if (isProduction) {
-    // Production: Use puppeteer-core with chromium
     const puppeteerCore = require("puppeteer-core");
     const chromium = require("@sparticuz/chromium");
     
@@ -113,13 +122,14 @@ export const renderVideo = async (videoId: string) => {
       executablePath: await chromium.executablePath(),
       headless: true,
       ignoreHTTPSErrors: true,
+      protocolTimeout: 300000,
     });
   } else {
-    // Local development: Use regular puppeteer
     const puppeteer = require("puppeteer");
     
     browser = await puppeteer.launch({
       headless: true,
+      protocolTimeout: 300000,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
@@ -129,8 +139,6 @@ export const renderVideo = async (videoId: string) => {
       ],
     });
   }
-
-
 
   const page = await browser.newPage();
   await page.setViewport({ width, height });
@@ -145,13 +153,9 @@ export const renderVideo = async (videoId: string) => {
   let lastImageIndex = -1;
 
   for (let frame = 0; frame < totalFrames; frame++) {
-    // Calculate which image to show for this frame
     const imageIndex = Math.floor(frame / framesPerImage);
-    
-    // Make sure we don't exceed array bounds
     const safeImageIndex = Math.min(imageIndex, videoData.imageLinks.length - 1);
 
-    // Only reload page when image changes
     if (safeImageIndex !== lastImageIndex) {
       const url = `file://${htmlPath}?frame=${frame}&imageIndex=${safeImageIndex}&data=${encodeURIComponent(
         JSON.stringify(videoData)
@@ -162,7 +166,8 @@ export const renderVideo = async (videoId: string) => {
         timeout: 30000 
       });
 
-      // Wait for image to load
+      await new Promise(resolve => setTimeout(resolve, 300));
+
       await page.evaluate(() => {
         return new Promise((resolve) => {
           const img = document.getElementById("background-image") as HTMLImageElement;
@@ -182,18 +187,18 @@ export const renderVideo = async (videoId: string) => {
       console.log(`Image ${safeImageIndex + 1}/${videoData.imageLinks.length} (frames ${frame}-${Math.min(frame + framesPerImage - 1, totalFrames - 1)})`);
     }
 
+    if (page.isClosed()) {
+      throw new Error("Page was closed unexpectedly");
+    }
+
     const framePath = path.join(
       outDir,
       `frame_${String(frame).padStart(4, "0")}.png`
-    ) as `${string}.png`;
+    );
 
-    await page.screenshot({ 
-      path: framePath, 
-      type: "png",
-      omitBackground: false
-    });
+    await new Promise(resolve => setTimeout(resolve, 30));
+    await takeScreenshotWithRetry(page, framePath);
 
-    // Progress logging
     if (frame % 100 === 0 || frame === totalFrames - 1) {
       console.log(`Progress: ${frame + 1}/${totalFrames} frames (${Math.round((frame / totalFrames) * 100)}%)`);
     }
@@ -211,7 +216,6 @@ export const renderVideo = async (videoId: string) => {
     throw new Error("No frames were generated!");
   }
 
-  // Generate video with FFmpeg
   const output = path.join(tempDir, `video_${videoId}.mp4`);
   console.log("Starting FFmpeg encoding...");
 
@@ -251,7 +255,6 @@ export const renderVideo = async (videoId: string) => {
   console.log(`Video file size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
   console.log(`Total time: ${encodeTime}s`);
 
-  // Upload to Supabase
   const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SERVICE_ROLE!
@@ -275,15 +278,10 @@ export const renderVideo = async (videoId: string) => {
   console.log("✅ Uploaded to Supabase:", publicUrl);
 
   await prisma.video.update({
-    where:{
-      videoId:videoId
-    },
-    data:{
-      videoUrl:publicUrl
-    }
-  })
+    where: { videoId },
+    data: { videoUrl: publicUrl }
+  });
 
-  // Cleanup
   fs.rmSync(outDir, { recursive: true, force: true });
   fs.rmSync(tempDir, { recursive: true, force: true });
 
