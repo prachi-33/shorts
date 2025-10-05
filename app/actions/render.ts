@@ -55,8 +55,8 @@ const downloadFile = (url: string, outputPath: string): Promise<void> => {
 
 export const renderVideo = async (videoId: string) => {
   const startTime = Date.now();
-  const outDir = path.resolve(process.cwd(), "frames");
-  const tempDir = path.resolve(process.cwd(), "temp");
+  const outDir = path.resolve("/tmp", "frames");
+  const tempDir = path.resolve("/tmp", "temp");
   fs.mkdirSync(outDir, { recursive: true });
   fs.mkdirSync(tempDir, { recursive: true });
 
