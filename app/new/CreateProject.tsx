@@ -113,7 +113,7 @@ function CreateProject({user,credits}:{user: string | null,credits:number}) {
                    setTimeout(() => {
                     setLoading(false);
                     router.push("/dashboard");
-                  }, 360000);   
+                  }, 350000);   
                 }catch(err){
                   console.error("Video creation failed:", err);
                   setLoading(false); // stop loader on error

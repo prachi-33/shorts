@@ -13,7 +13,6 @@ const worker=new Worker('video-processing',async(job)=>{
     console.log(`processing video with id ${videoId}`)
 
     try{
-        await processes(videoId)
         console.log(`successfuly processed video with id ${videoId}`)
     }catch{
         console.error(`error while processsing of video ${videoId}`)
