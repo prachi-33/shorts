@@ -1,5 +1,5 @@
-import chromium from "chrome-aws-lambda";
 import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
 import path from "path";
 import { prisma } from "../lib/db";
 import fs from "fs";
@@ -101,10 +101,15 @@ export const renderVideo = async (videoId: string) => {
   // Launch browser
   const browser = await puppeteer.launch({
     args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath || "/usr/bin/google-chrome",
+    defaultViewport: {
+      width,
+      height,
+    },
+    executablePath: await chromium.executablePath(),
     headless: true,
+    ignoreHTTPSErrors: true,
   });
+
 
 
   const page = await browser.newPage();
