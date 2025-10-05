@@ -6,6 +6,12 @@ import { createClient } from "@supabase/supabase-js";
 import https from "https";
 import http from "http";
 
+// Add this for Vercel
+const ffmpegPath = require("ffmpeg-static");
+if (ffmpegPath) {
+  ffmpeg.setFfmpegPath(ffmpegPath);
+}
+
 const downloadFile = (url: string, outputPath: string): Promise<void> => {
   return new Promise((resolve, reject) => {
     const protocol = url.startsWith("https") ? https : http;
@@ -64,10 +70,10 @@ export const renderVideo = async (videoId: string) => {
 
   // Create input file list for FFmpeg
   const fileListPath = path.join(tempDir, "filelist.txt");
-  const imageDuration = 30 / video.imageLinks.length; // seconds per image
+  const imageDuration = 30 / video.imageLinks.length;
   const fileListContent = imagePaths
     .map((imgPath) => `file '${imgPath}'\nduration ${imageDuration}`)
-    .join("\n") + `\nfile '${imagePaths[imagePaths.length - 1]}'`; // repeat last image
+    .join("\n") + `\nfile '${imagePaths[imagePaths.length - 1]}'`;
   
   fs.writeFileSync(fileListPath, fileListContent);
 
