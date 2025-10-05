@@ -34,7 +34,8 @@ export const renderVideo = async (videoId: string) => {
   await setupFFmpeg();
   
   const startTime = Date.now();
-  const tempDir = path.resolve("/tmp", `temp_${videoId}`);
+  const tempDir = path.join("/tmp", `temp_${videoId}`);
+  const output = path.join(tempDir, `video_${videoId}.mp4`);
 
   try {
     fs.mkdirSync(tempDir, { recursive: true });
@@ -44,114 +45,104 @@ export const renderVideo = async (videoId: string) => {
       select: { imageLinks: true, audio: true },
     });
 
-    if (!video?.audio || !video.imageLinks || video.imageLinks.length === 0) {
+    if (!video?.audio || !video.imageLinks?.length) {
       throw new Error("Video data not found");
     }
 
-    console.log(`Processing ${video.imageLinks.length} images with audio`);
+    console.log(`🖼️ Processing ${video.imageLinks.length} images with audio...`);
 
-    console.log("Downloading audio...");
+    // Download audio
     const audioPath = path.join(tempDir, `audio_${videoId}.mp3`);
+    console.log("🎵 Downloading audio...");
     await downloadFile(video.audio, audioPath);
-    console.log("Audio downloaded");
 
-    console.log("Downloading images...");
+    // Download images
     const imagePaths: string[] = [];
+    console.log("🖼️ Downloading images...");
     for (let i = 0; i < video.imageLinks.length; i++) {
       const imgPath = path.join(tempDir, `image_${String(i).padStart(3, "0")}.jpg`);
       await downloadFile(video.imageLinks[i], imgPath);
       imagePaths.push(imgPath);
-      console.log(`Downloaded image ${i + 1}/${video.imageLinks.length}`);
+      console.log(`✅ Downloaded image ${i + 1}/${video.imageLinks.length}`);
     }
 
-    const output = path.join(tempDir, `video_${videoId}.mp4`);
-    console.log("Creating video with FFmpeg...");
-
+    console.log("🎬 Creating video with FFmpeg...");
     const imageDuration = 30 / video.imageLinks.length;
 
     await new Promise<void>((resolve, reject) => {
       let cmd = ffmpeg();
 
-      // Add all images as inputs
       imagePaths.forEach((imgPath) => {
-        cmd = cmd.input(imgPath).inputOptions(['-loop', '1', '-t', imageDuration.toString()]);
+        cmd = cmd.input(imgPath).inputOptions([
+          "-loop", "1",
+          "-t", imageDuration.toString(),
+        ]);
       });
 
-      // Add audio
       cmd = cmd.input(audioPath);
 
-      // Simpler filter approach
       const filterParts: string[] = [];
-      imagePaths.forEach((_, index) => {
+      imagePaths.forEach((_, i) => {
         filterParts.push(
-          `[${index}:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${index}]`
+          `[${i}:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${i}]`
         );
       });
 
-      const concatInputs = imagePaths.map((_, i) => `[v${i}]`).join('');
+      const concatInputs = imagePaths.map((_, i) => `[v${i}]`).join("");
       filterParts.push(`${concatInputs}concat=n=${imagePaths.length}:v=1:a=0[outv]`);
 
       cmd
-        .complexFilter(filterParts.join(';'))
+        .complexFilter(filterParts.join(";"))
         .outputOptions([
-          '-map', '[outv]',
-          '-map', `${imagePaths.length}:a`,
-          '-c:v', 'libx264',
-          '-preset', 'veryfast',
-          '-crf', '23',
-          '-pix_fmt', 'yuv420p',
-          '-c:a', 'aac',
-          '-b:a', '128k',
-          '-movflags', '+faststart',
-          '-shortest'
+          "-map", "[outv]",
+          "-map", `${imagePaths.length}:a`,
+          "-c:v", "libx264",
+          "-preset", "veryfast",
+          "-crf", "23",
+          "-pix_fmt", "yuv420p",
+          "-c:a", "aac",
+          "-b:a", "128k",
+          "-movflags", "+faststart",
+          "-shortest",
         ])
-        .output(output)
-        .on('start', (cmd) => {
-          console.log('FFmpeg command:', cmd);
-        })
+        .on("start", (cmdLine) => console.log("⚙️ FFmpeg command:", cmdLine))
         .on("progress", (progress) => {
-          if (progress.percent) {
+          if (progress.percent)
             process.stdout.write(`\rEncoding: ${progress.percent.toFixed(1)}%`);
-          }
         })
         .on("stderr", (line) => {
-          console.log('FFmpeg:', line);
+          if (line.includes("Error")) console.error("FFmpeg stderr:", line);
         })
         .on("end", () => {
-          console.log("\nFFmpeg process ended");
-          
-          // Check if file actually exists
-          if (!fs.existsSync(output)) {
-            reject(new Error("Output file was not created by FFmpeg"));
-            return;
-          }
-          
-          const stats = fs.statSync(output);
-          if (stats.size === 0) {
-            reject(new Error("Output file is empty"));
-            return;
-          }
-          
-          console.log("Video encoding completed successfully");
+          console.log("\n✅ FFmpeg finished encoding");
           resolve();
         })
-        .on("error", (err, stdout, stderr) => {
-          console.error("FFmpeg error:", err.message);
-          if (stderr) console.error("FFmpeg stderr:", stderr);
+        .on("error", (err) => {
+          console.error("❌ FFmpeg error:", err.message);
           reject(err);
         })
-        .run();
+        .save(output);
     });
 
-    const stats = fs.statSync(output);
-    console.log(`Video file size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
+    // ✅ Wait for output file to exist
+    if (!fs.existsSync(output)) {
+      throw new Error(`Output file not created: ${output}`);
+    }
 
+    const stats = fs.statSync(output);
+    if (stats.size === 0) {
+      throw new Error("Output file is empty");
+    }
+
+    console.log(`📦 Video ready (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
+
+    // Upload to Supabase
     const supabase = createClient(
       process.env.SUPABASE_URL!,
       process.env.SERVICE_ROLE!
     );
 
-    console.log("Uploading to Supabase...");
+    console.log("☁️ Uploading to Supabase...");
 
     const { error } = await supabase.storage
       .from("shorts")
@@ -166,20 +157,28 @@ export const renderVideo = async (videoId: string) => {
       .from("shorts")
       .getPublicUrl(`shorts/${videoId}.mp4`);
 
-    console.log("Uploaded to Supabase:", publicUrl);
-
     await prisma.video.update({
       where: { videoId },
-      data: { videoUrl: publicUrl }
+      data: { videoUrl: publicUrl },
     });
 
+    console.log("✅ Uploaded:", publicUrl);
+
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`Complete pipeline finished in ${totalTime}s`);
+    console.log(`⏱️ Total processing time: ${totalTime}s`);
 
     return publicUrl;
+  } catch (err: any) {
+    console.error("❌ Error in renderVideo:", err.message);
+    throw err;
   } finally {
-    if (fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true });
+    // Clean up only AFTER upload
+    try {
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    } catch (cleanupErr) {
+      console.warn("⚠️ Cleanup error:", cleanupErr);
     }
   }
 };
