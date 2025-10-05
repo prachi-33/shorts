@@ -53,7 +53,7 @@ export const renderVideo = async (videoId: string) => {
     console.log("Downloading audio...");
     const audioPath = path.join(tempDir, `audio_${videoId}.mp3`);
     await downloadFile(video.audio, audioPath);
-    console.log("✅ Audio downloaded");
+    console.log("Audio downloaded");
 
     console.log("Downloading images...");
     const imagePaths: string[] = [];
@@ -69,58 +69,75 @@ export const renderVideo = async (videoId: string) => {
 
     const imageDuration = 30 / video.imageLinks.length;
 
-    // Build complex filter for image concatenation
-    const filterParts: string[] = [];
-    const inputStreams: string[] = [];
-
-    imagePaths.forEach((_, index) => {
-      // Scale and pad each image, set duration
-      filterParts.push(
-        `[${index}:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,setpts=PTS-STARTPTS+${index * imageDuration}/TB[v${index}]`
-      );
-      inputStreams.push(`[v${index}]`);
-    });
-
-    // Concatenate all streams
-    filterParts.push(`${inputStreams.join('')}concat=n=${imagePaths.length}:v=1:a=0[outv]`);
-
     await new Promise<void>((resolve, reject) => {
       let cmd = ffmpeg();
 
-      // Add all images as inputs with loop
+      // Add all images as inputs
       imagePaths.forEach((imgPath) => {
-        cmd = cmd.input(imgPath).inputOptions(['-loop 1', `-t ${imageDuration}`]);
+        cmd = cmd.input(imgPath).inputOptions(['-loop', '1', '-t', imageDuration.toString()]);
       });
 
       // Add audio
       cmd = cmd.input(audioPath);
 
+      // Simpler filter approach
+      const filterParts: string[] = [];
+      imagePaths.forEach((_, index) => {
+        filterParts.push(
+          `[${index}:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30[v${index}]`
+        );
+      });
+
+      const concatInputs = imagePaths.map((_, i) => `[v${i}]`).join('');
+      filterParts.push(`${concatInputs}concat=n=${imagePaths.length}:v=1:a=0[outv]`);
+
       cmd
         .complexFilter(filterParts.join(';'))
         .outputOptions([
-          '-map [outv]',
-          `-map ${imagePaths.length}:a`,
-          '-c:v libx264',
-          '-preset veryfast',
-          '-crf 23',
-          '-pix_fmt yuv420p',
-          '-c:a aac',
-          '-b:a 128k',
-          '-movflags +faststart',
+          '-map', '[outv]',
+          '-map', `${imagePaths.length}:a`,
+          '-c:v', 'libx264',
+          '-preset', 'veryfast',
+          '-crf', '23',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-movflags', '+faststart',
           '-shortest'
         ])
         .output(output)
+        .on('start', (cmd) => {
+          console.log('FFmpeg command:', cmd);
+        })
         .on("progress", (progress) => {
           if (progress.percent) {
             process.stdout.write(`\rEncoding: ${progress.percent.toFixed(1)}%`);
           }
         })
+        .on("stderr", (line) => {
+          console.log('FFmpeg:', line);
+        })
         .on("end", () => {
-          console.log("\n✅ Video encoding completed");
+          console.log("\nFFmpeg process ended");
+          
+          // Check if file actually exists
+          if (!fs.existsSync(output)) {
+            reject(new Error("Output file was not created by FFmpeg"));
+            return;
+          }
+          
+          const stats = fs.statSync(output);
+          if (stats.size === 0) {
+            reject(new Error("Output file is empty"));
+            return;
+          }
+          
+          console.log("Video encoding completed successfully");
           resolve();
         })
-        .on("error", (err) => {
-          console.error("\nFFmpeg error:", err.message);
+        .on("error", (err, stdout, stderr) => {
+          console.error("FFmpeg error:", err.message);
+          if (stderr) console.error("FFmpeg stderr:", stderr);
           reject(err);
         })
         .run();
@@ -149,7 +166,7 @@ export const renderVideo = async (videoId: string) => {
       .from("shorts")
       .getPublicUrl(`shorts/${videoId}.mp4`);
 
-    console.log("✅ Uploaded to Supabase:", publicUrl);
+    console.log("Uploaded to Supabase:", publicUrl);
 
     await prisma.video.update({
       where: { videoId },
@@ -157,7 +174,7 @@ export const renderVideo = async (videoId: string) => {
     });
 
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`✅ Complete pipeline finished in ${totalTime}s`);
+    console.log(`Complete pipeline finished in ${totalTime}s`);
 
     return publicUrl;
   } finally {
