@@ -1,4 +1,4 @@
-import puppeteer from "puppeteer-core";
+import puppeteer from "puppeteer";
 import chromium from "@sparticuz/chromium";
 import path from "path";
 import { prisma } from "../lib/db";
@@ -99,16 +99,36 @@ export const renderVideo = async (videoId: string) => {
   console.log(`Frames per image: ${framesPerImage}`);
 
   // Launch browser
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: {
-      width,
-      height,
-    },
-    executablePath: await chromium.executablePath(),
-    headless: true,
-    ignoreHTTPSErrors: true,
-  });
+  let browser;
+  const isProduction = process.env.VERCEL === "1" || process.env.NODE_ENV === "production";
+
+  if (isProduction) {
+    // Production: Use puppeteer-core with chromium
+    const puppeteerCore = require("puppeteer-core");
+    const chromium = require("@sparticuz/chromium");
+    
+    browser = await puppeteerCore.launch({
+      args: chromium.args,
+      defaultViewport: { width, height },
+      executablePath: await chromium.executablePath(),
+      headless: true,
+      ignoreHTTPSErrors: true,
+    });
+  } else {
+    // Local development: Use regular puppeteer
+    const puppeteer = require("puppeteer");
+    
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-web-security",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+      ],
+    });
+  }
 
 
 
