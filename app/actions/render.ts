@@ -31,7 +31,6 @@ const downloadFile = (url: string, outputPath: string): Promise<void> => {
 };
 
 export const renderVideo = async (videoId: string) => {
-  // Setup FFmpeg first
   await setupFFmpeg();
   
   const startTime = Date.now();
@@ -65,28 +64,46 @@ export const renderVideo = async (videoId: string) => {
       console.log(`Downloaded image ${i + 1}/${video.imageLinks.length}`);
     }
 
-    const fileListPath = path.join(tempDir, "filelist.txt");
-    const imageDuration = 30 / video.imageLinks.length;
-    const fileListContent = imagePaths
-      .map((imgPath) => `file '${imgPath}'\nduration ${imageDuration}`)
-      .join("\n") + `\nfile '${imagePaths[imagePaths.length - 1]}'`;
-    
-    fs.writeFileSync(fileListPath, fileListContent);
-
     const output = path.join(tempDir, `video_${videoId}.mp4`);
     console.log("Creating video with FFmpeg...");
 
+    const imageDuration = 30 / video.imageLinks.length;
+
+    // Build complex filter for image concatenation
+    const filterParts: string[] = [];
+    const inputStreams: string[] = [];
+
+    imagePaths.forEach((_, index) => {
+      // Scale and pad each image, set duration
+      filterParts.push(
+        `[${index}:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=30,setpts=PTS-STARTPTS+${index * imageDuration}/TB[v${index}]`
+      );
+      inputStreams.push(`[v${index}]`);
+    });
+
+    // Concatenate all streams
+    filterParts.push(`${inputStreams.join('')}concat=n=${imagePaths.length}:v=1:a=0[outv]`);
+
     await new Promise<void>((resolve, reject) => {
-      ffmpeg()
-        .input(fileListPath)
-        .inputOptions(['-f concat', '-safe 0'])
-        .input(audioPath)
+      let cmd = ffmpeg();
+
+      // Add all images as inputs with loop
+      imagePaths.forEach((imgPath) => {
+        cmd = cmd.input(imgPath).inputOptions(['-loop 1', `-t ${imageDuration}`]);
+      });
+
+      // Add audio
+      cmd = cmd.input(audioPath);
+
+      cmd
+        .complexFilter(filterParts.join(';'))
         .outputOptions([
+          '-map [outv]',
+          `-map ${imagePaths.length}:a`,
           '-c:v libx264',
-          '-vf scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2,setsar=1',
-          '-pix_fmt yuv420p',
           '-preset veryfast',
           '-crf 23',
+          '-pix_fmt yuv420p',
           '-c:a aac',
           '-b:a 128k',
           '-movflags +faststart',
