@@ -1,14 +1,10 @@
 import path from "path";
 import { prisma } from "../lib/db";
 import fs from "fs";
-import ffmpeg from "fluent-ffmpeg";
+import ffmpeg, { setupFFmpeg } from "../lib/ffmpeg";
 import { createClient } from "@supabase/supabase-js";
 import https from "https";
 import http from "http";
-
-// Use @ffmpeg-installer/ffmpeg instead
-const ffmpegInstaller = require("@ffmpeg-installer/ffmpeg");
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 const downloadFile = (url: string, outputPath: string): Promise<void> => {
   return new Promise((resolve, reject) => {
@@ -35,6 +31,9 @@ const downloadFile = (url: string, outputPath: string): Promise<void> => {
 };
 
 export const renderVideo = async (videoId: string) => {
+  // Setup FFmpeg first
+  await setupFFmpeg();
+  
   const startTime = Date.now();
   const tempDir = path.resolve("/tmp", `temp_${videoId}`);
 
