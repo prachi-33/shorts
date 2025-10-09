@@ -38,7 +38,10 @@ export const renderVideo = async (videoId: string) => {
   const output = path.join(tempDir, `video_${videoId}.mp4`);
 
   try {
-    fs.mkdirSync(tempDir, { recursive: true });
+    // Create temp directory
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
 
     const video = await prisma.video.findUnique({
       where: { videoId },
@@ -56,12 +59,23 @@ export const renderVideo = async (videoId: string) => {
     console.log("🎵 Downloading audio...");
     await downloadFile(video.audio, audioPath);
 
+    // Verify audio downloaded
+    if (!fs.existsSync(audioPath) || fs.statSync(audioPath).size === 0) {
+      throw new Error("Audio file download failed");
+    }
+
     // Download images
     const imagePaths: string[] = [];
     console.log("🖼️ Downloading images...");
     for (let i = 0; i < video.imageLinks.length; i++) {
       const imgPath = path.join(tempDir, `image_${String(i).padStart(3, "0")}.jpg`);
       await downloadFile(video.imageLinks[i], imgPath);
+      
+      // Verify image downloaded
+      if (!fs.existsSync(imgPath) || fs.statSync(imgPath).size === 0) {
+        throw new Error(`Image ${i + 1} download failed`);
+      }
+      
       imagePaths.push(imgPath);
       console.log(`✅ Downloaded image ${i + 1}/${video.imageLinks.length}`);
     }
@@ -72,6 +86,7 @@ export const renderVideo = async (videoId: string) => {
     await new Promise<void>((resolve, reject) => {
       let cmd = ffmpeg();
 
+      // Add all image inputs
       imagePaths.forEach((imgPath) => {
         cmd = cmd.input(imgPath).inputOptions([
           "-loop", "1",
@@ -79,8 +94,10 @@ export const renderVideo = async (videoId: string) => {
         ]);
       });
 
+      // Add audio input
       cmd = cmd.input(audioPath);
 
+      // Build filter complex
       const filterParts: string[] = [];
       imagePaths.forEach((_, i) => {
         filterParts.push(
@@ -94,6 +111,7 @@ export const renderVideo = async (videoId: string) => {
       cmd
         .complexFilter(filterParts.join(";"))
         .outputOptions([
+          "-y", // CRITICAL: Overwrite output file
           "-map", "[outv]",
           "-map", `${imagePaths.length}:a`,
           "-c:v", "libx264",
@@ -105,26 +123,44 @@ export const renderVideo = async (videoId: string) => {
           "-movflags", "+faststart",
           "-shortest",
         ])
-        .on("start", (cmdLine) => console.log("⚙️ FFmpeg command:", cmdLine))
+        .on("start", (cmdLine) => {
+          console.log("⚙️ FFmpeg command:", cmdLine);
+          console.log("📁 Output path:", output);
+        })
         .on("progress", (progress) => {
-          if (progress.percent)
+          if (progress.percent) {
             process.stdout.write(`\rEncoding: ${progress.percent.toFixed(1)}%`);
+          }
         })
         .on("stderr", (line) => {
-          if (line.includes("Error")) console.error("FFmpeg stderr:", line);
+          // Log all stderr for debugging
+          if (line.includes("Error") || line.includes("error")) {
+            console.error("FFmpeg stderr:", line);
+          }
         })
         .on("end", () => {
           console.log("\n✅ FFmpeg finished encoding");
-          resolve();
+          
+          // Give filesystem a moment to flush
+          setTimeout(() => {
+            if (fs.existsSync(output)) {
+              const size = fs.statSync(output).size;
+              console.log(`📦 Output file created: ${(size / 1024 / 1024).toFixed(2)} MB`);
+              resolve();
+            } else {
+              reject(new Error(`Output file not found after encoding: ${output}`));
+            }
+          }, 500);
         })
-        .on("error", (err) => {
+        .on("error", (err, stdout, stderr) => {
           console.error("❌ FFmpeg error:", err.message);
+          console.error("FFmpeg stderr:", stderr);
           reject(err);
         })
         .save(output);
     });
 
-    // ✅ Wait for output file to exist
+    // Verify output file exists and has content
     if (!fs.existsSync(output)) {
       throw new Error(`Output file not created: ${output}`);
     }
@@ -144,9 +180,11 @@ export const renderVideo = async (videoId: string) => {
 
     console.log("☁️ Uploading to Supabase...");
 
+    const videoBuffer = fs.readFileSync(output);
+    
     const { error } = await supabase.storage
       .from("shorts")
-      .upload(`shorts/${videoId}.mp4`, fs.readFileSync(output), {
+      .upload(`shorts/${videoId}.mp4`, videoBuffer, {
         contentType: "video/mp4",
         upsert: true,
       });
@@ -172,10 +210,11 @@ export const renderVideo = async (videoId: string) => {
     console.error("❌ Error in renderVideo:", err.message);
     throw err;
   } finally {
-    // Clean up only AFTER upload
+    // Clean up temp directory
     try {
       if (fs.existsSync(tempDir)) {
         fs.rmSync(tempDir, { recursive: true, force: true });
+        console.log("🧹 Cleaned up temp files");
       }
     } catch (cleanupErr) {
       console.warn("⚠️ Cleanup error:", cleanupErr);
