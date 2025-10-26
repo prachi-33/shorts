@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cliply - AI-Powered Automated Video Editor
 
-## Getting Started
+> Transform raw event footage into professional, cinema-quality videos without manual editing.
 
-First, run the development server:
+Cliply is an AI-powered SaaS platform that automatically edits videos by intelligently selecting clips, applying transitions, color grading, and synchronizing background music—all without human intervention.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🎯 Problem Statement
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Traditional video editing is:
+- ⏱️ **Time-intensive**: 1 hour of raw footage requires 5-8 hours of editing
+- 💰 **Expensive**: Professional editors charge $50-150/hour
+- 🎓 **Skill-dependent**: Requires expertise in editing software
+- 🚫 **Non-scalable**: Manual editing doesn't scale with content volume
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Cliply solves this** by automating the entire video editing workflow using artificial intelligence.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## ✨ Features
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 🤖 Intelligent Video Processing
+- **Smart Clip Selection**: AI identifies the best moments from hours of raw footage  
+- **Quality Analysis**: Automatically filters out blurry, poorly lit, or redundant clips  
+- **Scene Understanding**: Detects faces, objects, actions, and emotional moments  
+- **Narrative Construction**: Arranges clips into a coherent, engaging story  
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 🎨 Automated Post-Production
+- **Color Grading**: One-click professional color correction (Cinematic, Vibrant, Corporate styles)  
+- **Video Stabilization**: AI-powered shake removal and smoothing  
+- **Exposure Correction**: Automatic brightness and white balance adjustment  
+- **Noise Reduction**: Audio and video enhancement for cleaner output  
 
-## Deploy on Vercel
+### 🎵 Audio Intelligence
+- **Music Integration**: Royalty-free library + AI music generation  
+- **Beat Synchronization**: Cuts aligned with musical rhythm  
+- **Audio Enhancement**: Background noise removal and level normalization  
+- **Voice Clarity**: Speech enhancement for dialogue-heavy content  
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 🎬 Creative Enhancements
+- **Smart Transitions**: Context-aware crossfades, cuts, and wipes  
+- **Text Overlays**: Auto-generated titles, lower-thirds, and captions  
+- **Multi-Format Export**: 16:9, 9:16 (vertical), 1:1 (square), 4:5 (Instagram)  
+- **Logo & Watermarks**: Customizable branding placement  
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
